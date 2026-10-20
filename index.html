@@ -105,6 +105,7 @@ input,select{font:inherit;color:var(--fg)}
 .swatches{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;padding:14px 0}
 .sw{aspect-ratio:1;max-width:100%;border-radius:50%;border:3px solid transparent}
 .sw[aria-pressed="true"]{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--fg)}
+.delgo{background:var(--bad);color:#fff;font-weight:700;border-radius:10px;padding:8px 12px}
 .danger{color:var(--bad);font-weight:600;padding:12px}
 .hint{color:var(--muted);font-size:.82rem;text-align:center;line-height:1.45}
 textarea{width:100%;min-height:120px;background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:12px;padding:10px;font:12px ui-monospace,monospace}
@@ -138,7 +139,7 @@ const KEY="notas-eie-v1";
 let S; try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
 if(!S||!Array.isArray(S.courses))S=structuredClone(SEED);
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
-let view={page:"home",id:null,edit:false};
+let view={page:"home",id:null,edit:false,homeEdit:false};let pendingDel=null;
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const fmt=(n,d=1)=>Number.isFinite(n)?n.toFixed(d):"—";
@@ -181,11 +182,17 @@ function homeHTML(){
   let pts=0,cr=0;
   for(const c of S.courses){const r=calc(c);if(r.done>0){pts+=r.current*c.credits;cr+=+c.credits}}
   const avg=cr?pts/cr:NaN;
-  return `<div class="bar"><span class="link"></span><h1>Mis materias</h1><button class="link r" data-act="backup">Respaldo</button></div>
+  return `<div class="bar"><button class="link" data-act="homeedit">${view.homeEdit?"Listo":"Editar"}</button><h1>Mis materias</h1><button class="link r" data-act="backup">Respaldo</button></div>
   <div class="summary"><div><div class="lbl">${esc(S.term)}</div><div class="lbl num">${cr} de ${S.courses.reduce((s,c)=>s+(+c.credits||0),0)} créditos con notas</div></div>
   <div style="text-align:right"><div class="big num">${Number.isFinite(avg)?ucr(avg).toFixed(1):"—"}</div><div class="lbl num">promedio ponderado · ${fmt(avg)}%</div></div></div>
   <div class="sechead"><h2>Materias</h2><button class="plus" data-act="newcourse" aria-label="Añadir materia">+</button></div>
-  <div class="list">${S.courses.map(c=>{const r=calc(c),st=status(c,r);
+  <div class="list">${S.courses.map((c,k)=>{const r=calc(c),st=status(c,r);
+    if(view.homeEdit)return `<div class="course">
+      <button class="del" data-act="askdel" data-id="${c.id}" aria-label="Eliminar ${esc(c.name)}">−</button>
+      <span class="dot" style="background:${c.color}">${esc((c.code||c.name).replace(/^IE-?/,"").slice(0,4))}</span>
+      <span class="cinfo"><div class="cname">${esc(c.name)}</div><div class="csub">${esc(c.code)} · ${c.credits} cr</div></span>
+      ${pendingDel===c.id?`<button class="delgo" data-act="godel" data-id="${c.id}">Eliminar</button>`:
+      `<div class="mv"><button data-act="cup" data-id="${c.id}" ${k?"":"disabled"} aria-label="Subir">▲</button><button data-act="cdown" data-id="${c.id}" ${k<S.courses.length-1?"":"disabled"} aria-label="Bajar">▼</button></div>`}</div>`;
     return `<button class="course" data-act="open" data-id="${c.id}">
       <span class="dot" style="background:${c.color}">${esc((c.code||c.name).replace(/^IE-?/,"").slice(0,4))}</span>
       <span class="cinfo"><div class="cname">${esc(c.name)}</div><div class="csub">${esc(c.code)} · ${c.credits} cr · <span class="pill ${st.k}">${st.t}</span></div></span>
@@ -262,7 +269,12 @@ document.addEventListener("click",e=>{
   const act=b.dataset.act,c=course();
   const idx=c?c.items.findIndex(i=>i.id===b.dataset.id):-1;
   switch(act){
-   case"open":view={page:"course",id:b.dataset.id,edit:false};break;
+   case"open":view={page:"course",id:b.dataset.id,edit:false,homeEdit:false};break;
+   case"homeedit":view.homeEdit=!view.homeEdit;pendingDel=null;break;
+   case"askdel":pendingDel=pendingDel===b.dataset.id?null:b.dataset.id;break;
+   case"godel":{const x=S.courses.find(y=>y.id===b.dataset.id);S.courses=S.courses.filter(y=>y.id!==b.dataset.id);pendingDel=null;toast((x?.name||"Materia")+" eliminada");break}
+   case"cup":case"cdown":{const k=S.courses.findIndex(y=>y.id===b.dataset.id),j=act==="cup"?k-1:k+1;
+     if(j>=0&&j<S.courses.length)[S.courses[k],S.courses[j]]=[S.courses[j],S.courses[k]];break}
    case"home":view={page:"home"};break;
    case"edit":view.edit=true;break;
    case"done":case"course":view.edit=false;break;
