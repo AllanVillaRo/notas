@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0c0f">
+<meta name="description" content="Calculadora de notas ponderadas para cursos de la EIE-UCR">
+<title>Mis Notas EIE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: una columna tipo app de bolsillo, lista de materias → detalle con evaluaciones */
+:root{
+  --bg:#f3f4f6; --surface:#ffffff; --surface2:#eceef2; --line:#dde0e6;
+  --fg:#16181d; --muted:#6b7080; --accent:#e8643c; --accent-soft:#fde6dd;
+  --ok:#1f9d61; --warn:#c98a06; --bad:#d93b3b;
+  --display:"Bricolage Grotesque",system-ui,sans-serif;
+  --body:"Figtree",system-ui,-apple-system,sans-serif;
+  --r:14px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0b0c0f; --surface:#17191e; --surface2:#21242b; --line:#2b2f37;
+  --fg:#f2f3f5; --muted:#8c91a0; --accent:#ff7a50; --accent-soft:#3a1f16;
+  --ok:#3ccf8a; --warn:#f0b43a; --bad:#ff6464; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0b0c0f; --surface:#17191e; --surface2:#21242b; --line:#2b2f37;
+  --fg:#f2f3f5; --muted:#8c91a0; --accent:#ff7a50; --accent-soft:#3a1f16;
+  --ok:#3ccf8a; --warn:#f0b43a; --bad:#ff6464; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px 40px}
+.app{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input,select{font:inherit;color:var(--fg)}
+.num{font-variant-numeric:tabular-nums}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:44px}
+.bar h1{font-family:var(--display);font-size:1.15rem;margin:0;text-align:center;flex:1;text-wrap:balance}
+.link{color:var(--accent);font-weight:600;padding:8px 4px;min-width:64px}
+.link.r{text-align:right}
+.summary{background:var(--surface);border-radius:var(--r);padding:16px 18px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.summary .lbl{color:var(--muted);font-size:.85rem}
+.summary .big{font-family:var(--display);font-weight:700;font-size:2rem;line-height:1}
+.sechead{display:flex;justify-content:space-between;align-items:center}
+.sechead h2{font-family:var(--display);font-size:1.6rem;margin:0}
+.plus{width:40px;height:40px;border-radius:50%;font-size:1.6rem;line-height:1;display:grid;place-items:center}
+.plus:hover{background:var(--surface2)}
+.list{display:flex;flex-direction:column;gap:8px}
+.course{background:var(--surface);border-radius:var(--r);padding:12px 14px;display:flex;align-items:center;gap:12px;width:100%;text-align:left}
+.course:hover{background:var(--surface2)}
+.dot{width:40px;height:40px;border-radius:50%;flex:none;display:grid;place-items:center;color:#fff;font-family:var(--display);font-weight:700;font-size:.8rem;letter-spacing:.02em}
+.cinfo{flex:1;min-width:0}
+.cname{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.csub{color:var(--muted);font-size:.8rem}
+.cpct{font-weight:600;color:var(--muted)}
+.chev{color:var(--muted)}
+.pill{font-size:.72rem;font-weight:700;padding:3px 8px;border-radius:99px;letter-spacing:.03em;text-transform:uppercase;white-space:nowrap}
+.pill.ok{color:var(--ok);background:color-mix(in srgb,var(--ok) 14%,transparent)}
+.pill.warn{color:var(--warn);background:color-mix(in srgb,var(--warn) 16%,transparent)}
+.pill.bad{color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,transparent)}
+.pill.na{color:var(--muted);background:var(--surface2)}
+.hero{display:grid;grid-template-columns:1fr 1px 1fr;gap:12px;text-align:center;padding:6px 0 4px}
+.hero .sep{background:var(--line)}
+.hero .lbl{color:var(--accent);font-size:.85rem;font-weight:600;opacity:.85}
+.hero .val{font-family:var(--display);font-size:clamp(2.4rem,11vw,3.4rem);font-weight:500;line-height:1.1}
+.hero .val small{font-size:.45em;margin-left:2px}
+.hero .cur{color:var(--accent)}
+.target{background:none;border:0;border-bottom:2px solid var(--accent);width:4.2ch;text-align:center;font-family:var(--display);font-size:clamp(2.4rem,11vw,3.4rem);font-weight:500;padding:0}
+.meta{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;align-items:center;color:var(--muted);font-size:.85rem}
+.progress{height:8px;border-radius:99px;background:var(--surface2);overflow:hidden;display:flex}
+.progress i{display:block;height:100%}
+.items{display:flex;flex-direction:column}
+.item{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.item .nm{flex:1;min-width:0}
+.item .nm b{font-weight:600;display:block}
+.item .nm span{color:var(--muted);font-size:.8rem}
+.box{width:118px;flex:none;border-radius:12px;border:1.5px solid var(--line);padding:6px 8px;text-align:center}
+.box .k{font-size:.75rem;color:var(--muted)}
+.box.need{background:var(--accent-soft);border-color:transparent}
+.box.need .k{color:var(--accent)}
+.box .v{display:flex;justify-content:center;align-items:baseline;gap:2px;font-weight:700;font-size:1.05rem}
+.box input{width:3.2ch;background:none;border:0;text-align:right;font-weight:700;padding:0;font-size:1.05rem}
+.box input.mx{text-align:left;width:3.2ch;color:var(--muted)}
+.box input::placeholder{color:var(--muted);opacity:.6}
+.cta{background:var(--accent);color:#fff;font-weight:700;border-radius:12px;padding:12px 18px;align-self:center}
+.edititem{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--line)}
+.edititem input.n{flex:1;min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:9px 10px}
+.wbox{display:flex;align-items:center;gap:2px;background:var(--accent-soft);color:var(--accent);border-radius:10px;padding:6px 8px;font-weight:700}
+.wbox input{width:3.5ch;background:none;border:0;color:var(--accent);font-weight:700;text-align:right}
+.del{width:28px;height:28px;border-radius:50%;background:var(--bad);color:#fff;font-weight:700;flex:none;line-height:1}
+.mv{display:flex;flex-direction:column}
+.mv button{color:var(--muted);font-size:.8rem;padding:0 4px;line-height:1.2}
+.total{text-align:center}
+.total .lbl{color:var(--muted);font-size:.85rem}
+.total .val{font-family:var(--display);font-size:2.6rem;color:var(--accent)}
+.total.badsum .val{color:var(--bad)}
+.sheet{position:fixed;inset:0;background:color-mix(in srgb,#000 45%,transparent);display:flex;align-items:flex-end;justify-content:center;z-index:20}
+.panel{background:var(--bg);width:100%;max-width:560px;max-height:92%;overflow:auto;border-radius:18px 18px 0 0;
+  padding:8px max(16px,env(safe-area-inset-right,0px)) calc(24px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:14px}
+.group{background:var(--surface);border-radius:var(--r);padding:4px 14px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row input,.row select{background:var(--surface2);border:0;border-radius:8px;padding:8px 10px;text-align:right;min-width:0;max-width:60%}
+.fname{width:100%;background:var(--surface2);border:0;border-radius:12px;padding:14px;text-align:center;font-weight:700;font-size:1.15rem;margin:10px 0}
+.swatches{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;padding:14px 0}
+.sw{aspect-ratio:1;max-width:100%;border-radius:50%;border:3px solid transparent}
+.sw[aria-pressed="true"]{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--fg)}
+.danger{color:var(--bad);font-weight:600;padding:12px}
+.hint{color:var(--muted);font-size:.82rem;text-align:center;line-height:1.45}
+textarea{width:100%;min-height:120px;background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:12px;padding:10px;font:12px ui-monospace,monospace}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:99px;font-weight:600;z-index:30}
+@media (prefers-reduced-motion:no-preference){.panel{animation:up .22s ease-out}@keyframes up{from{transform:translateY(30px);opacity:.6}}}
+</style>
+<style>[hidden]{display:none!important}img{max-width:100%}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+<div id="sheet"></div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const COLORS=["#e8643c","#e05555","#d6a21c","#2fa36b","#1ea5a0","#3b82c4","#6d5ed8","#b455c9","#d9578f","#7a8a5a","#8a6d55","#5f6675"];
+const uid=()=>Math.random().toString(36).slice(2,9);
+const it=(n,w,s=null,m=100)=>({id:uid(),name:n,weight:w,score:s,max:m});
+const SEED={term:"II Ciclo 2026",courses:[
+ {id:uid(),code:"IE0523",name:"Sistemas Digitales II",credits:3,color:COLORS[0],target:67.5,items:[
+  it("Primer parcial",25),it("Segundo parcial",25),it("Tarea 1",10),it("Tarea 2",10),it("Proyecto",30)]},
+ {id:uid(),code:"IE0431",name:"Sistemas de Control",credits:3,color:COLORS[5],target:67.5,items:[
+  it("Parcial I",20),it("Parcial II",20),it("Parcial III",20),it("Proyecto",15),it("Tareas",15),it("Exámenes cortos",10)]},
+ {id:uid(),code:"IE0405",name:"Modelos Probabilísticos",credits:3,color:COLORS[6],target:67.5,items:[
+  it("Examen 1",25),it("Examen 2",25),it("Examen 3",20),it("Proyecto de programación",15),it("Tareas y quices",15)]},
+ {id:uid(),code:"IE0321",name:"Estructuras de Computadoras I",credits:3,color:COLORS[4],target:67.5,items:[
+  it("Exámenes cortos (8)",25),it("Tarea 1",3),it("Tarea 2",5),it("Tarea 3",7),it("Tarea 4",10),it("Examen parcial",20),it("Examen final",30)]},
+ {id:uid(),code:"IE0311",name:"Circuitos Integrados Digitales",credits:3,color:COLORS[3],target:67.5,items:[
+  it("Parcial I",25),it("Parcial II",30),it("Tarea 1: MOSFET",10),it("Tarea 2: FinFET",5),it("Tarea 3: DC compuertas",10),it("Tarea 4: Transitoria",10),it("Quices",10)]}
+]};
+const KEY="notas-eie-v1";
+let S; try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
+if(!S||!Array.isArray(S.courses))S=structuredClone(SEED);
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+let view={page:"home",id:null,edit:false};
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmt=(n,d=1)=>Number.isFinite(n)?n.toFixed(d):"—";
+const course=()=>S.courses.find(c=>c.id===view.id);
+
+function calc(c){
+  let earned=0,done=0,total=0;
+  for(const i of c.items){const w=+i.weight||0;total+=w;
+    if(i.score!==null&&i.score!==""&&+i.max>0){earned+=w*(+i.score/+i.max);done+=w}}
+  const remaining=Math.max(0,total-done);
+  const current=done>0?earned/done*100:NaN;
+  const need=remaining>0?(c.target-earned)/remaining*100:NaN;
+  return{earned,done,total,remaining,current,need};
+}
+// UCR: nota sobre 10 redondeada a la media unidad más cercana
+const ucr=p=>Math.round(p/10*2)/2;
+function status(c,r){
+  if(r.done===0)return{t:"Sin notas",k:"na"};
+  if(r.remaining===0){const n=ucr(r.earned);
+    return n>=7?{t:"Aprobado "+n.toFixed(1),k:"ok"}:n>=6?{t:"Ampliación "+n.toFixed(1),k:"warn"}:{t:"Reprobado "+n.toFixed(1),k:"bad"}}
+  if(r.earned>=67.5)return{t:"Ya aprobó",k:"ok"};
+  if(r.earned+r.remaining<57.5)return{t:"Fuera de alcance",k:"bad"};
+  if(r.earned+r.remaining<67.5)return{t:"Solo ampliación",k:"warn"};
+  return{t:"En curso",k:"na"};
+}
+function needText(r){
+  if(!Number.isFinite(r.need))return"";
+  if(r.need<=0)return"asegurado";
+  if(r.need>100)return"no alcanza";
+  return Math.ceil(r.need)+"%";
+}
+
+function render(){
+  const a=$("#app");
+  if(view.page==="home")a.innerHTML=homeHTML();
+  else{const c=course(); if(!c){view={page:"home"};return render()}
+    a.innerHTML=view.edit?editHTML(c):detailHTML(c)}
+}
+function homeHTML(){
+  let pts=0,cr=0;
+  for(const c of S.courses){const r=calc(c);if(r.done>0){pts+=r.current*c.credits;cr+=+c.credits}}
+  const avg=cr?pts/cr:NaN;
+  return `<div class="bar"><span class="link"></span><h1>Mis materias</h1><button class="link r" data-act="backup">Respaldo</button></div>
+  <div class="summary"><div><div class="lbl">${esc(S.term)}</div><div class="lbl num">${cr} de ${S.courses.reduce((s,c)=>s+(+c.credits||0),0)} créditos con notas</div></div>
+  <div style="text-align:right"><div class="big num">${Number.isFinite(avg)?ucr(avg).toFixed(1):"—"}</div><div class="lbl num">promedio ponderado · ${fmt(avg)}%</div></div></div>
+  <div class="sechead"><h2>Materias</h2><button class="plus" data-act="newcourse" aria-label="Añadir materia">+</button></div>
+  <div class="list">${S.courses.map(c=>{const r=calc(c),st=status(c,r);
+    return `<button class="course" data-act="open" data-id="${c.id}">
+      <span class="dot" style="background:${c.color}">${esc((c.code||c.name).replace(/^IE-?/,"").slice(0,4))}</span>
+      <span class="cinfo"><div class="cname">${esc(c.name)}</div><div class="csub">${esc(c.code)} · ${c.credits} cr · <span class="pill ${st.k}">${st.t}</span></div></span>
+      <span class="cpct num">${Number.isFinite(r.current)?fmt(r.current)+"%":"—"}</span><span class="chev">›</span></button>`}).join("")}
+  ${S.courses.length?"":`<p class="hint">Todavía no hay materias. Toca + para añadir la primera.</p>`}</div>
+  <p class="hint">La nota actual se calcula solo con lo ya evaluado. En la UCR se aprueba con 7,0 (67,5% redondea a 7,0) y de 6,0 a 6,5 hay ampliación.</p>`;
+}
+function detailHTML(c){
+  const r=calc(c),st=status(c,r);
+  const segs=c.items.map(i=>{const w=+i.weight||0;const g=i.score!==null&&i.score!==""&&+i.max>0;
+    return g?`<i style="width:${w*(+i.score/+i.max)}%;background:${c.color}"></i>`:""}).join("");
+  return `<div class="bar"><button class="link" data-act="home">‹ Materias</button><h1>${esc(c.name)}</h1><button class="link r" data-act="edit">Editar</button></div>
+  <div class="hero"><div><div class="lbl">nota actual</div><div class="val cur num">${Number.isFinite(r.current)?fmt(r.current):"—"}<small>%</small></div></div>
+  <div class="sep"></div><div><div class="lbl">meta</div><div class="val num"><input class="target num" id="target" inputmode="decimal" value="${c.target}" aria-label="Nota meta"><small>%</small></div></div></div>
+  <div class="meta"><span class="pill ${st.k}">${st.t}</span><span class="num">Acumulado ${fmt(r.earned)} de ${fmt(r.done,0)} pts evaluados</span>${r.remaining>0?`<span class="num">· faltan ${fmt(r.remaining,0)} pts</span>`:""}</div>
+  <div class="progress" title="Puntos acumulados sobre 100">${segs}</div>
+  <div class="items">${c.items.map(i=>{const g=i.score!==null&&i.score!=="";
+    return `<div class="item"><div class="nm"><b>${esc(i.name)}</b><span class="num">vale ${+i.weight}%</span></div>
+    <div class="box ${g?"":"need"}"><div class="k">${g?"obtuve":"necesito "+needText(r)}</div>
+      <div class="v num"><input id="s-${i.id}" data-score="${i.id}" inputmode="decimal" value="${g?i.score:""}" placeholder="—" aria-label="Nota de ${esc(i.name)}">/<input class="mx" id="m-${i.id}" data-max="${i.id}" inputmode="decimal" value="${i.max}" aria-label="Máximo de ${esc(i.name)}"></div></div></div>`}).join("")}</div>
+  ${c.items.length?"":`<p class="hint">Sin evaluaciones. Toca Editar para añadir las del programa del curso.</p>`}
+  <p class="hint">Escribe la nota en "obtuve". Las que dejas vacías muestran cuánto necesitas, en promedio, para llegar a la meta.</p>`;
+}
+function editHTML(c){
+  const r=calc(c);
+  return `<div class="bar"><button class="link" data-act="course">Materia</button><h1>${esc(c.name)}</h1><button class="link r" data-act="done">Listo</button></div>
+  <div class="total ${Math.abs(r.total-100)>0.01?"badsum":""}"><div class="lbl">total posible</div><div class="val num">${fmt(r.total)}%</div>
+  ${Math.abs(r.total-100)>0.01?`<div class="hint">Los porcentajes deberían sumar 100%.</div>`:""}</div>
+  <button class="cta" data-act="additem">+ Nueva evaluación</button>
+  <div class="items">${c.items.map((i,k)=>`<div class="edititem">
+    <button class="del" data-act="delitem" data-id="${i.id}" aria-label="Eliminar ${esc(i.name)}">−</button>
+    <input class="n" id="n-${i.id}" data-name="${i.id}" value="${esc(i.name)}" aria-label="Nombre">
+    <label class="wbox"><input id="w-${i.id}" data-weight="${i.id}" inputmode="decimal" value="${+i.weight}" aria-label="Porcentaje">%</label>
+    <div class="mv"><button data-act="up" data-id="${i.id}" ${k?"":"disabled"} aria-label="Subir">▲</button><button data-act="down" data-id="${i.id}" ${k<c.items.length-1?"":"disabled"} aria-label="Bajar">▼</button></div></div>`).join("")}</div>
+  <button class="link" style="align-self:center" data-act="coursesettings">Nombre, créditos y color</button>`;
+}
+
+let sheetCourse=null,confirmDel=false;
+function openSheet(c){sheetCourse=c?structuredClone(c):{id:uid(),code:"",name:"",credits:3,color:COLORS[S.courses.length%COLORS.length],target:67.5,items:[]};
+  sheetCourse._new=!c;confirmDel=false;drawSheet()}
+function drawSheet(){const c=sheetCourse;
+  $("#sheet").innerHTML=`<div class="sheet" data-act="closesheet"><div class="panel" role="dialog" aria-label="Materia">
+   <div class="bar"><button class="link" data-act="closesheet">Cancelar</button><h1>${c._new?"Nueva materia":"Editar materia"}</h1><button class="link r" data-act="savesheet">Listo</button></div>
+   <div class="group" style="text-align:center;padding:16px 14px">
+     <span class="dot" style="background:${c.color};width:72px;height:72px;margin:0 auto;font-size:1.1rem">${esc((c.code||c.name||"?").replace(/^IE-?/,"").slice(0,4))}</span>
+     <input class="fname" id="f-name" placeholder="Nombre de la materia" value="${esc(c.name)}"></div>
+   <div class="group">
+     <div class="row"><span>Código</span><input id="f-code" placeholder="IE0000" value="${esc(c.code)}"></div>
+     <div class="row"><span>Créditos</span><input id="f-cred" inputmode="numeric" value="${c.credits}"></div>
+     <div class="row"><span>Meta (%)</span><input id="f-target" inputmode="decimal" value="${c.target}"></div></div>
+   <div class="group"><div class="swatches">${COLORS.map(x=>`<button class="sw" data-color="${x}" style="background:${x}" aria-label="Color ${x}" aria-pressed="${x===c.color}"></button>`).join("")}</div></div>
+   ${c._new?"":`<button class="danger" data-act="delcourse">${confirmDel?"Toca otra vez para eliminar la materia":"Eliminar materia"}</button>`}
+  </div></div>`;
+  setTimeout(()=>{const f=$("#f-name");if(f&&c._new)f.focus()},50)}
+function readSheet(){const c=sheetCourse;if(!$("#f-name"))return;
+  c.name=$("#f-name").value.trim();c.code=$("#f-code").value.trim();
+  c.credits=Math.max(0,parseFloat($("#f-cred").value)||0);
+  const t=parseFloat($("#f-target").value);c.target=Number.isFinite(t)?t:67.5}
+function backupSheet(){
+  $("#sheet").innerHTML=`<div class="sheet" data-act="closesheet"><div class="panel" role="dialog" aria-label="Respaldo">
+   <div class="bar"><button class="link" data-act="closesheet">Cerrar</button><h1>Respaldo</h1><span class="link"></span></div>
+   <p class="hint">Tus notas se guardan solo en este navegador. Copia este texto para pasarlo a otro dispositivo, o pega uno y toca Restaurar.</p>
+   <textarea id="bk">${esc(JSON.stringify(S))}</textarea>
+   <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+    <button class="cta" data-act="copybk">Copiar</button><button class="cta" style="background:var(--surface2);color:var(--fg)" data-act="restore">Restaurar</button></div>
+   <div class="group"><div class="row"><span>Nombre del ciclo</span><input id="f-term" value="${esc(S.term)}"></div></div>
+   <button class="danger" data-act="reset">Volver a las materias de ejemplo</button></div></div>`}
+function toast(t){const e=$("#toast");e.textContent=t;e.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>e.hidden=true,1800)}
+
+document.addEventListener("click",e=>{
+  const sw=e.target.closest("[data-color]");if(sw){readSheet();sheetCourse.color=sw.dataset.color;drawSheet();return}
+  const b=e.target.closest("[data-act]");if(!b)return;
+  if(b.classList.contains("sheet")&&e.target!==b)return;
+  const act=b.dataset.act,c=course();
+  const idx=c?c.items.findIndex(i=>i.id===b.dataset.id):-1;
+  switch(act){
+   case"open":view={page:"course",id:b.dataset.id,edit:false};break;
+   case"home":view={page:"home"};break;
+   case"edit":view.edit=true;break;
+   case"done":case"course":view.edit=false;break;
+   case"newcourse":openSheet(null);return;
+   case"coursesettings":openSheet(c);return;
+   case"additem":c.items.push(it("Nueva evaluación",0));save();render();
+     setTimeout(()=>{const n=document.querySelectorAll(".edititem input.n");n[n.length-1]?.select()},0);return;
+   case"delitem":c.items.splice(idx,1);break;
+   case"up":if(idx>0)[c.items[idx-1],c.items[idx]]=[c.items[idx],c.items[idx-1]];break;
+   case"down":if(idx<c.items.length-1)[c.items[idx+1],c.items[idx]]=[c.items[idx],c.items[idx+1]];break;
+   case"closesheet":$("#sheet").innerHTML="";return;
+   case"savesheet":{readSheet();const sc=sheetCourse;if(!sc.name){toast("Escribe el nombre de la materia");return}
+     const isNew=sc._new;delete sc._new;
+     if(isNew){S.courses.push(sc);view={page:"course",id:sc.id,edit:true}}
+     else{const k=S.courses.findIndex(x=>x.id===sc.id);sc.items=S.courses[k].items;S.courses[k]=sc}
+     $("#sheet").innerHTML="";toast(isNew?"Materia añadida":"Materia guardada");break}
+   case"delcourse":if(!confirmDel){readSheet();confirmDel=true;drawSheet();return}
+     S.courses=S.courses.filter(x=>x.id!==sheetCourse.id);$("#sheet").innerHTML="";view={page:"home"};toast("Materia eliminada");break;
+   case"backup":backupSheet();return;
+   case"copybk":{const t=$("#bk");navigator.clipboard?.writeText(t.value).then(()=>toast("Copiado"),()=>{t.select();toast("Selecciona y copia el texto")})??(t.select(),toast("Selecciona y copia el texto"));return}
+   case"restore":try{const d=JSON.parse($("#bk").value);if(!Array.isArray(d.courses))throw 0;S=d;save();$("#sheet").innerHTML="";view={page:"home"};render();toast("Respaldo restaurado")}catch(_){toast("Ese texto no es un respaldo válido")}return;
+   case"reset":if(b.dataset.armed){S=structuredClone(SEED);save();$("#sheet").innerHTML="";view={page:"home"};render();toast("Listo")}else{b.dataset.armed=1;b.textContent="Toca otra vez para borrar tus cambios"}return;
+  }
+  save();render();
+});
+document.addEventListener("input",e=>{
+  const t=e.target,c=course();
+  if(t.id==="f-term"){S.term=t.value;save();render();return}
+  if(!c)return;
+  const find=id=>c.items.find(i=>i.id===id);
+  if(t.id==="target"){const v=parseFloat(t.value);if(Number.isFinite(v)){c.target=v;save();refresh(t)}return}
+  if(t.dataset.score){const i=find(t.dataset.score);const v=t.value.trim().replace(",",".");i.score=v===""?null:(Number.isFinite(+v)?+v:i.score);save();refresh(t);return}
+  if(t.dataset.max){const i=find(t.dataset.max);const v=parseFloat(t.value.replace(",","."));if(v>0){i.max=v;save();refresh(t)}return}
+  if(t.dataset.name){find(t.dataset.name).name=t.value;save();return}
+  if(t.dataset.weight){const v=parseFloat(t.value.replace(",","."));find(t.dataset.weight).weight=Number.isFinite(v)?v:0;save();refresh(t)}
+});
+// Re-render manteniendo el foco y la posición del cursor
+function refresh(t){const id=t.id,pos=t.selectionStart;render();const n=document.getElementById(id);
+  if(n){n.focus();try{n.setSelectionRange(pos,pos)}catch(_){}}}
+render();
+</script>
+</body>
+</html>
